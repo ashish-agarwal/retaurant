@@ -1,0 +1,6 @@
+.vscode/
+client_secret.json
+github.cred.json
+ashish.html
+restaurantmenu.db
+*.pyc
