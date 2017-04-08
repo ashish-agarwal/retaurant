@@ -14,6 +14,19 @@ from catalog import app
 from db.database_setup import User, Restaurant
 from db.db_helper import connect_to_database
 
+from functools import wraps
+from flask import g, request, redirect, url_for
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        print "login_Session", login_session
+        if 'username' not in login_session:
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 @app.route('/login')
 def login():

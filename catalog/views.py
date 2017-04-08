@@ -9,6 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from catalog import app
 from db.database_setup import Restaurant, MenuItem, User
 from db.db_helper import connect_to_database
+from auth import login_required
 
 
 @app.route('/')
@@ -30,10 +31,8 @@ def show_homepage():
 
 
 @app.route('/restaurant', methods=['POST'])
+@login_required
 def add_restaurant():
-    if 'username' not in login_session:
-        return redirect('/')
-
     session = connect_to_database(app)
     if request.method == 'POST':
         # Restaurant names for a restaurant must be unique
@@ -76,10 +75,8 @@ def show_items(restaurant_id):
 
 
 @app.route('/restaurant/<restaurant_id>/item/', methods=['GET', 'POST'])
+@login_required
 def add_item(restaurant_id):
-    if 'username' not in login_session:
-        return redirect('/')
-
     session = connect_to_database(app)
     if request.method == 'GET':
         restaurants = session.query(Restaurant).all()
@@ -96,8 +93,9 @@ def add_item(restaurant_id):
             return redirect(url_for('show_homepage'))
 
         # Item names for a restaurant must be unique
-        qry = session.query(MenuItem).filter(and_(MenuItem.name == request.form[
-            'name'], MenuItem.restaurant_id == restaurant_id))
+        qry = session.query(MenuItem).filter(
+            and_(MenuItem.name == request.form[
+                'name'], MenuItem.restaurant_id == restaurant_id))
         already_exists = (session.query(literal(True)).
                           filter(qry.exists()).scalar())
         if already_exists is True:
@@ -126,7 +124,7 @@ def add_item(restaurant_id):
 def show_item(restaurant_id, item_id):
     session = connect_to_database(app)
     restaurant = session.query(
-            Restaurant).filter_by(id=restaurant_id).one()
+        Restaurant).filter_by(id=restaurant_id).one()
     try:
         item = session.query(MenuItem).filter_by(id=item_id).one()
     except NoResultFound:
@@ -134,18 +132,17 @@ def show_item(restaurant_id, item_id):
         flash("The item '%s' does not exist." % item_id)
         return redirect(url_for('show_homepage'))
 
-    session.close()    
+    session.close()
     return render_template('item.html',
-                               restaurant=restaurant, item=item)
+                           restaurant=restaurant, item=item)
 
 
-@app.route('/restaurant/<restaurant_id>/item/<item_id>/delete', methods=['GET'])
+@app.route('/restaurant/<restaurant_id>/item/<item_id>/delete',
+           methods=['GET'])
+@login_required
 def delete_item(restaurant_id, item_id):
     """Delete a specified item from the database.
     """
-    if 'username' not in login_session:
-        return redirect('/login')
-
     session = connect_to_database(app)
 
     try:
@@ -168,15 +165,13 @@ def delete_item(restaurant_id, item_id):
     return redirect(url_for('show_items', restaurant_id=restaurant_id))
 
 
-@app.route('/restaurant/<restaurant_id>/item/<item_id>/edit', methods=['GET', 'POST'])
+@app.route('/restaurant/<restaurant_id>/item/<item_id>/edit',
+           methods=['GET', 'POST'])
+@login_required
 def edit_item(restaurant_id, item_id):
     """Edit item from the database.
     """
-    if 'username' not in login_session:
-        return redirect('/login')
-
     session = connect_to_database(app)
-
     try:
         item = session.query(MenuItem).filter_by(id=item_id).one()
     except NoResultFound:
@@ -196,15 +191,17 @@ def edit_item(restaurant_id, item_id):
     if request.method == 'POST':
         # Item names for a restaurant must be unique
         if request.form['name'] != item.name:
-            qry = session.query(MenuItem).filter(and_(MenuItem.name == request.form[
-                'name'], MenuItem.restaurant_id == restaurant_id))
+            qry = session.query(MenuItem).filter(
+                and_(MenuItem.name == request.form[
+                    'name'], MenuItem.restaurant_id == restaurant_id))
             already_exists = (session.query(literal(True)).
                               filter(qry.exists()).scalar())
             if already_exists is True:
                 flash("Error: There is already an animal with the name '%s'"
                       % request.form['name'])
                 session.close()
-                return redirect(url_for('show_items', restaurant_id=restaurant_id))
+                return redirect(url_for('show_items',
+                                        restaurant_id=restaurant_id))
             item.name = request.form['name']
 
         item.description = request.form['description']
